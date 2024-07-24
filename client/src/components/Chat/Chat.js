@@ -10,7 +10,7 @@ import Input from '../Input/Input';
 
 import './Chat.css';
 
-const ENDPOINT = 'https://chatroombackend-40jx.onrender.com';
+const ENDPOINT = 'http://localhost:5000/';
 
 let socket;
 
@@ -35,7 +35,7 @@ const Chat = () => {
         alert(error);
       }
     });
-  }, [ENDPOINT, location.search]);
+  }, [location.search]); // Removed ENDPOINT from dependency array
 
   useEffect(() => {
     socket.on('message', (message) => {
@@ -68,4 +68,3 @@ const Chat = () => {
 };
 
 export default Chat;
-
