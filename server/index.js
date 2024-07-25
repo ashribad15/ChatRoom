@@ -12,7 +12,7 @@ const app = express();
 
 // Use CORS middleware
 app.use(cors({
-  origin: 'http://localhost:3000', // Allow only this origin
+  origin: 'https://pvtchatroom.netlify.app', // Allow only this origin
   methods: ['GET', 'POST'], // Allow these HTTP methods
   credentials: true, // Allow cookies
 }));
@@ -20,7 +20,7 @@ app.use(cors({
 const server = http.createServer(app);
 const io = socketio(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: 'https://pvtchatroom.netlify.app', // Allow only this origin
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -71,9 +71,3 @@ io.on('connection', (socket) => {
 app.use(router);
 
 server.listen(PORT, () => console.log(`Server has started on port ${PORT}`));
-
-
-
-
-
-
