@@ -15,7 +15,7 @@ const ENDPOINT = 'https://chatroombackend-40jx.onrender.com/';
 let socket;
 
 const Chat = () => {
-  const location = useLocation(); // Use the hook to get location object
+  const location = useLocation(); 
   const [name, setName] = useState('');
   const [room, setRoom] = useState('');
   const [users, setUsers] = useState('');
@@ -35,7 +35,7 @@ const Chat = () => {
         alert(error);
       }
     });
-  }, [location.search]); // Removed ENDPOINT from dependency array
+  }, [ENDPOINT, location.search]);
 
   useEffect(() => {
     socket.on('message', (message) => {
