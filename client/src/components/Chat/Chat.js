@@ -1,70 +1,74 @@
-import React, { useState, useEffect } from "react";
-import queryString from 'query-string';
-import io from "socket.io-client";
-import { useLocation } from 'react-router-dom';
+const express = require('express');
+const socketio = require('socket.io');
+const http = require('http');
+const cors = require('cors');
 
-import TextContainer from '../TextContainer/TextContainer';
-import Messages from '../Messages/Messages';
-import InfoBar from '../InfoBar/InfoBar';
-import Input from '../Input/Input';
+const { addUser, removeUser, getUser, getUsersInRoom } = require('./users');
 
-import './Chat.css';
+const PORT = process.env.PORT || 5000;
+const router = require('./router');
 
-const ENDPOINT = 'https://chatroombackend-40jx.onrender.com/';
+const app = express();
 
-let socket;
+// Use CORS middleware
+app.use(cors({
+  origin: 'https://pvtchatroom.netlify.app', // Allow only this origin
+  methods: ['GET', 'POST'], // Allow these HTTP methods
+  credentials: true, // Allow cookies
+}));
 
-const Chat = () => {
-  const location = useLocation(); 
-  const [name, setName] = useState('');
-  const [room, setRoom] = useState('');
-  const [users, setUsers] = useState('');
-  const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState([]);
+const server = http.createServer(app);
+const io = socketio(server, {
+  cors: {
+    origin: 'https://pvtchatroom.netlify.app', // Allow only this origin
+    methods: ['GET', 'POST'],
+    credentials: true,
+  },
+});
 
-  useEffect(() => {
-    const { name, room } = queryString.parse(location.search);
+io.on('connection', (socket) => {
+  socket.on('join', ({ name, room }, callback) => {
+    const { error, user } = addUser({ id: socket.id, name, room });
 
-    socket = io(ENDPOINT);
-
-    setRoom(room);
-    setName(name);
-
-    socket.emit('join', { name, room }, (error) => {
-      if (error) {
-        alert(error);
-      }
-    });
-  }, [ENDPOINT, location.search]);
-
-  useEffect(() => {
-    socket.on('message', (message) => {
-      setMessages((messages) => [...messages, message]);
-    });
-
-    socket.on("roomData", ({ users }) => {
-      setUsers(users);
-    });
-  }, []);
-
-  const sendMessage = (event) => {
-    event.preventDefault();
-
-    if (message) {
-      socket.emit('sendMessage', message, () => setMessage(''));
+    if (error) {
+      console.error('Error adding user:', error);
+      return callback(error);
     }
-  };
 
-  return (
-    <div className="outerContainer">
-      <div className="container">
-        <InfoBar room={room} />
-        <Messages messages={messages} name={name} />
-        <Input message={message} setMessage={setMessage} sendMessage={sendMessage} />
-      </div>
-      <TextContainer users={users} />
-    </div>
-  );
-};
+    socket.join(user.room);
 
-export default Chat;
+    socket.emit('message', { user: 'admin', text: `${user.name}, welcome to the room ${user.room}.` });
+    socket.broadcast.to(user.room).emit('message', { user: 'admin', text: `${user.name} has joined!` });
+
+    io.to(user.room).emit('roomData', { room: user.room, users: getUsersInRoom(user.room) });
+
+    callback();
+  });
+
+  socket.on('sendMessage', (message, callback) => {
+    const user = getUser(socket.id);
+
+    if (!user || !user.room) {
+      console.error('User or user.room is undefined:', user);
+      return callback('User or room not found');
+    }
+
+    io.to(user.room).emit('message', { user: user.name, text: message });
+
+    callback();
+  });
+
+  socket.on('disconnect', () => {
+    const user = removeUser(socket.id);
+
+    if (user) {
+      io.to(user.room).emit('message', { user: 'Admin', text: `${user.name} has left.` });
+      io.to(user.room).emit('roomData', { room: user.room, users: getUsersInRoom(user.room) });
+    }
+  });
+});
+
+app.use(router);
+
+server.listen(PORT, () => console.log(`Server has started on port ${PORT}`));
+
